@@ -8,16 +8,23 @@ from db import check_user, check_address, add_user, delete_user
 import qrcode
 from config import CONNECT_URL, WALLETS_LIST_URL
 import os
+import time
 
 async def disconnect(call: types.CallbackQuery):
     if check_user(call.from_user.id):
         delete_user(call.from_user.id)
-        os.remove(f"connections/{call.from_user.id}.json")
+        try:
+            os.remove(f"connections/{call.from_user.id}.json")
+            os.remove(f"images/{call.from_user.id}.png")
+        except:
+            pass
         await call.answer("Удалено!")
 
 
 async def tonkeeper_connect(call: types.CallbackQuery):
     if check_user(call.from_user.id):
+        return
+    if os.path.exists(f"images/{call.from_user.id}.png") and (time.time() - os.path.getctime(f"images/{call.from_user.id}.png")) < 90:
         return
 
     storage = FileStorage(f"connections/{call.from_user.id}.json")
@@ -35,18 +42,18 @@ async def tonkeeper_connect(call: types.CallbackQuery):
         print('connect_error:', e)
 
     unsubscribe = connector.on_status_change(status_changed, status_error)
-    
+
     try:
         url = await connector.connect(connector.get_wallets()[0])
     except:
         await connector.disconnect()
         url = await connector.connect(connector.get_wallets()[0])
-    qrcode.make(url).save("images/qrcode.png")
-    
+    qrcode.make(url).save(f"images/{call.from_user.id}.png")
+
     await call.bot.send_photo(call.from_user.id,
-                              photo=open("images/qrcode.png", "rb"),
+                              photo=open(f"images/{call.from_user.id}.png", "rb"),
                               caption=f"Воспользуйся <a href='{url}'>этой ссылкой</a> для подключения или qr-кодом сверху")
-    
+
     address = None
     for i in range(120):
         await asyncio.sleep(1)
@@ -54,13 +61,13 @@ async def tonkeeper_connect(call: types.CallbackQuery):
             if connector.account.address:
                 address = Address(connector.account.address).to_string(1, 1, 1)
             break
-    
+
     if not address:
         return
 
     if check_address(address):
         return
-    
+
     add_user(call.from_user.id, address)
     await call.message.answer(text=f"Подключено!")
 
@@ -70,6 +77,8 @@ async def tonkeeper_connect(call: types.CallbackQuery):
 async def tonhub_connect(call: types.CallbackQuery):
     if check_user(call.from_user.id):
         return
+    if os.path.exists(f"images/{call.from_user.id}.png") and (time.time() - os.path.getctime(f"images/{call.from_user.id}.png")) < 90:
+        return
 
     storage = FileStorage(f"connections/{call.from_user.id}.json")
     connector = TonConnect(CONNECT_URL, storage,
@@ -86,18 +95,18 @@ async def tonhub_connect(call: types.CallbackQuery):
         print('connect_error:', e)
 
     unsubscribe = connector.on_status_change(status_changed, status_error)
-    
+
     try:
         url = await connector.connect(connector.get_wallets()[1])
     except:
         await connector.disconnect()
         url = await connector.connect(connector.get_wallets()[1])
-    qrcode.make(url).save("images/qrcode.png")
-    
+    qrcode.make(url).save(f"images/{call.from_user.id}.png")
+
     await call.bot.send_photo(call.from_user.id,
-                              photo=open("images/qrcode.png", "rb"),
+                              photo=open(f"images/{call.from_user.id}.png", "rb"),
                               caption=f"Воспользуйся <a href='{url}'>этой ссылкой</a> для подключения или qr-кодом сверху")
-    
+
     address = None
     for i in range(120):
         await asyncio.sleep(1)
@@ -105,13 +114,13 @@ async def tonhub_connect(call: types.CallbackQuery):
             if connector.account.address:
                 address = Address(connector.account.address).to_string(1, 1, 1)
             break
-    
+
     if not address:
         return
 
     if check_address(address):
         return
-    
+
     add_user(call.from_user.id, address)
     await call.message.answer(text=f"Подключено!")
 
